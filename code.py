@@ -324,7 +324,7 @@ elif not st.session_state.questions_list:
         st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
-                # Practice Mode (Study Mode or Timed Drill)
+                     # Practice Mode (Study Mode or Timed Drill)
         st.header(f"Practice Mode: {st.session_state.event} ({st.session_state.mode}) ✨")
         
         # Conditional logic for Exit Confirmation
@@ -514,7 +514,7 @@ else:
 
             st.markdown("---")
             
-            if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_on_click=reset_practice_session):
+            if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
                 pass
 
             # Conditional logic for Exit button with a key for specific styling
