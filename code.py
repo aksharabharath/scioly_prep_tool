@@ -324,202 +324,210 @@ elif not st.session_state.questions_list:
         st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
-    # Practice Mode (Study Mode or Timed Drill)
-    st.header(f"Practice Mode: {st.session_state.event} ({st.session_state.mode}) ✨")
-    
-    # Conditional logic for Exit Confirmation
-    if st.session_state.show_exit_confirmation:
-        with st.container(border=True):
-            st.warning("Are you sure you want to exit? Your current progress will be lost.")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.button("❌ Exit", on_click=return_to_event_selection, use_container_width=True)
-            with col2:
-                st.button("✅ Stay", on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
-    else:
-        # Display cheat sheet if the user has opted to view it
-        if st.session_state.show_cheat_sheet:
-            st.subheader("Current Cheat Sheet")
-            if st.session_state.incorrect_questions:
-                # Generate the cheat sheet text for display
-                cheat_sheet_text = ""
-                for q_data in st.session_state.incorrect_questions:
-                    phrase = generate_cheat_sheet_phrase(q_data)
-                    cheat_sheet_text += f"- {phrase}\n\n"
-                
-                # Display the text in the app
-                st.text_area("Cheat Sheet Content", value=cheat_sheet_text, height=400, disabled=True)
-                
-                # Provide download buttons
-                st.download_button(
-                    label="Download as Plain Text (.txt)",
-                    data=cheat_sheet_text,
-                    file_name=f"SciOly_{st.session_state.event}_CheatSheet.txt",
-                    mime="text/plain"
-                )
+        # Practice Mode (Study Mode or Timed Drill)
+        st.header(f"Practice Mode: {st.session_state.event} ({st.session_state.mode}) ✨")
+        
+        # Conditional logic for Exit Confirmation
+        if st.session_state.show_exit_confirmation:
+            with st.container(border=True):
+                st.warning("Are you sure you want to exit? Your current progress will be lost.")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.button("❌ Exit", on_click=return_to_event_selection, use_container_width=True)
+                with col2:
+                    st.button("✅ Stay", on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
+        else:
+            # Display cheat sheet if the user has opted to view it
+            if st.session_state.show_cheat_sheet:
+                st.subheader("Current Cheat Sheet")
+                if st.session_state.incorrect_questions:
+                    # Generate the cheat sheet text for display
+                    cheat_sheet_text = ""
+                    for q_data in st.session_state.incorrect_questions:
+                        phrase = generate_cheat_sheet_phrase(q_data)
+                        cheat_sheet_text += f"- {phrase}\n\n"
+                    
+                    # Display the text in the app
+                    st.text_area("Cheat Sheet Content", value=cheat_sheet_text, height=400, disabled=True)
+                    
+                    # Provide download buttons
+                    st.download_button(
+                        label="Download as Plain Text (.txt)",
+                        data=cheat_sheet_text,
+                        file_name=f"SciOly_{st.session_state.event}_CheatSheet.txt",
+                        mime="text/plain"
+                    )
 
-                # Generate markdown content for download
-                markdown_content = ""
-                for q_data in st.session_state.incorrect_questions:
-                    markdown_content += f"- {generate_cheat_sheet_phrase(q_data)}\n\n"
+                    # Generate markdown content for download
+                    markdown_content = ""
+                    for q_data in st.session_state.incorrect_questions:
+                        markdown_content += f"- {generate_cheat_sheet_phrase(q_data)}\n\n"
+                    
+                    st.download_button(
+                        label="Download as Markdown (.md)",
+                        data=markdown_content,
+                        file_name=f"SciOly_{st.session_state.event}_CheatSheet.md",
+                        mime="text/markdown"
+                    )
+
+                else:
+                    st.info("Your cheat sheet is empty. Keep going!")
                 
-                st.download_button(
-                    label="Download as Markdown (.md)",
-                    data=markdown_content,
-                    file_name=f"SciOly_{st.session_state.event}_CheatSheet.md",
-                    mime="text/markdown"
-                )
+                if st.button("Return to Drill", on_click=toggle_cheat_sheet, args=(False,)):
+                    pass
+                    
+            # Display current question if not showing cheat sheet
+            elif st.session_state.questions_list and st.session_state.current_question_index < len(st.session_state.questions_list):
+                question_data = st.session_state.questions_list[st.session_state.current_question_index]
+                
+                progress_percentage = (st.session_state.current_question_index / len(st.session_state.questions_list))
+                st.progress(progress_percentage, text=f"Question {st.session_state.current_question_index + 1} of {len(st.session_state.questions_list)}")
+                
+                st.subheader(f"Topic: {question_data['topic']}")
+                
+                # Timed Drill Timer
+                if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
+                    time_left = st.session_state.timer_end_time - time.time()
+                    
+                    if time_left <= 0:
+                        st.session_state.last_answer_state = 'incorrect'
+                        st.session_state.awaiting_action_after_incorrect = True
+                        st.error("Time's up!")
+                    else:
+                        minutes, seconds = divmod(int(time_left), 60)
+                        st.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
+                
+                st.write(f"**Question:** {question_data['question']}")
+                
+                # Display hint if it has been revealed (and only if it's not a correct answer)
+                if st.session_state.hint_revealed and st.session_state.last_answer_state != 'correct' and 'hint' in question_data and pd.notna(question_data['hint']):
+                    st.info(f"Hint: {question_data['hint']}")
+
+                # Determine widget based on question type
+                if question_data['type'] == 'multiple-choice':
+                    st.session_state.user_answer = st.radio("Your answer:", question_data['options'], index=None)
+                elif question_data['type'] == 'true/false':
+                    st.session_state.user_answer = st.radio("Your answer:", ['True', 'False'], index=None)
+                elif question_data['type'] == 'short-answer':
+                    st.session_state.user_answer = st.text_input("Your answer:")
+                    
+                # UI for answering the question
+                if not st.session_state.show_answer and not st.session_state.awaiting_action_after_incorrect:
+                    if st.button("Check Answer", use_container_width=True, disabled=st.session_state.user_answer is None, on_click=check_answer_callback):
+                        pass
+                
+                # UI for correct answer
+                if st.session_state.last_answer_state == 'correct':
+                    st.success("✅ Correct!")
+                    if 'explanation' in question_data and pd.notna(question_data['explanation']):
+                        st.info(f"Explanation: {question_data['explanation']}")
+                    st.button("Next Question", use_container_width=True, on_click=next_question)
+                    
+                # UI for incorrect answer, awaiting user action
+                elif st.session_state.awaiting_action_after_incorrect:
+                    # Timed Drill logic for incorrect/timeout
+                    if st.session_state.mode == "Timed Drill":
+                        st.error("❌ Incorrect or Time's up. Would you like to try again or reveal the answer?")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.button("1 More Minute", use_container_width=True, disabled=st.session_state.extra_minute_used, on_click=add_extra_minute)
+                        with col2:
+                            st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                    # Study Mode logic for incorrect
+                    else:
+                        st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.button("Show Hint", use_container_width=True, on_click=show_hint)
+                        with col2:
+                            st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                        with col3:
+                            st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
+                
+                # UI for revealed answer after incorrect action
+                elif st.session_state.show_answer and st.session_state.last_answer_state == 'incorrect':
+                    # Display hint only if the user revealed it
+                    if st.session_state.hint_revealed and 'hint' in question_data and pd.notna(question_data['hint']):
+                        st.info(f"Hint: {question_data['hint']}")
+                    
+                    st.error(f"❌ Incorrect. The correct answer is: **{question_data['answer']}**")
+                    
+                    if st.session_state.mode == "Timed Drill":
+                        st.info("Question has been added to cheat sheet for review.")
+                    
+                    if 'explanation' in question_data and pd.notna(question_data['explanation']):
+                        st.info(f"Explanation: {question_data['explanation']}")
+                    st.button("Next Question", use_container_width=True, on_click=next_question)
+                
+                st.markdown("---")
+
+                # *** NEW CODE HERE ***
+                # Only re-run the script if the timer is still active
+                if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
+                    time_left = st.session_state.timer_end_time - time.time()
+                    if time_left > 0:
+                        time.sleep(1)
+                        st.rerun()
 
             else:
-                st.info("Your cheat sheet is empty. Keep going!")
-            
-            if st.button("Return to Drill", on_click=toggle_cheat_sheet, args=(False,)):
-                pass
-                
-        # Display current question if not showing cheat sheet
-        elif st.session_state.questions_list and st.session_state.current_question_index < len(st.session_state.questions_list):
-            question_data = st.session_state.questions_list[st.session_state.current_question_index]
-            
-            progress_percentage = (st.session_state.current_question_index / len(st.session_state.questions_list))
-            st.progress(progress_percentage, text=f"Question {st.session_state.current_question_index + 1} of {len(st.session_state.questions_list)}")
-            
-            st.subheader(f"Topic: {question_data['topic']}")
-            
-            # Timed Drill Timer
-            if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
-                time_left = st.session_state.timer_end_time - time.time()
-                
-                if time_left <= 0:
-                    st.session_state.last_answer_state = 'incorrect'
-                    st.session_state.awaiting_action_after_incorrect = True
-                    st.error("Time's up!")
-                else:
-                    minutes, seconds = divmod(int(time_left), 60)
-                    st.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
-            
-            st.write(f"**Question:** {question_data['question']}")
-            
-            # Display hint if it has been revealed (and only if it's not a correct answer)
-            if st.session_state.hint_revealed and st.session_state.last_answer_state != 'correct' and 'hint' in question_data and pd.notna(question_data['hint']):
-                st.info(f"Hint: {question_data['hint']}")
+                # End of Drill screen
+                st.header("Drill Complete! 🎉")
+                st.write(f"Fantastic job! You've successfully completed the practice drill for **{st.session_state.event}**.")
 
-            # Determine widget based on question type
-            if question_data['type'] == 'multiple-choice':
-                st.session_state.user_answer = st.radio("Your answer:", question_data['options'], index=None)
-            elif question_data['type'] == 'true/false':
-                st.session_state.user_answer = st.radio("Your answer:", ['True', 'False'], index=None)
-            elif question_data['type'] == 'short-answer':
-                st.session_state.user_answer = st.text_input("Your answer:")
+                # Overall Summary
+                st.subheader("Drill Summary")
+                if st.session_state.attempted_questions > 0:
+                    accuracy = (st.session_state.score / st.session_state.attempted_questions) * 100
+                    st.write(f"You answered **{st.session_state.score}** out of **{st.session_state.attempted_questions}** questions correctly, for an overall accuracy of **{accuracy:.2f}%**.")
+                    st.write(f"You used hints **{st.session_state.hints_used}** time(s).")
+                else:
+                    accuracy = 0
+                    st.write("You didn't answer any questions during this session.")
                 
-            # UI for answering the question
-            if not st.session_state.show_answer and not st.session_state.awaiting_action_after_incorrect:
-                if st.button("Check Answer", use_container_width=True, disabled=st.session_state.user_answer is None, on_click=check_answer_callback):
+                # Topic-by-topic summary
+                if st.session_state.topic_stats:
+                    st.subheader("Performance by Topic")
+                    for topic, stats in st.session_state.topic_stats.items():
+                        if stats['attempted'] > 0:
+                            topic_accuracy = (stats['correct'] / stats['attempted']) * 100
+                            st.markdown(f"- **{topic}**: {stats['correct']} of {stats['attempted']} correct ({topic_accuracy:.2f}%)")
+                        else:
+                            st.markdown(f"- **{topic}**: No questions attempted.")
+                
+                # Personalized Advice
+                st.subheader("Personalized Advice")
+                if accuracy >= 80:
+                    st.success("Your performance is excellent! You have a strong grasp of the material. Keep up the great work and consider exploring new topics or events to broaden your knowledge.")
+                elif accuracy >= 50:
+                    st.info("Great effort! You're on the right track. Focus on reviewing the topics where you had difficulty. Your cheat sheet is a great resource for this. Don't be afraid to try another drill on the same topics to solidify your understanding.")
+                else:
+                    st.warning("You've completed the drill and now have a good starting point. The best next step is to carefully review your personalized cheat sheet and study the explanations for the questions you missed. Remember, every wrong answer is a chance to learn something new!")
+                
+                # Action Buttons
+                st.markdown("---")
+                if st.button("Start a New Drill", on_click=return_to_event_selection, use_container_width=True):
                     pass
-            
-            # UI for correct answer
-            if st.session_state.last_answer_state == 'correct':
-                st.success("✅ Correct!")
-                if 'explanation' in question_data and pd.notna(question_data['explanation']):
-                    st.info(f"Explanation: {question_data['explanation']}")
-                st.button("Next Question", use_container_width=True, on_click=next_question)
-                
-            # UI for incorrect answer, awaiting user action
-            elif st.session_state.awaiting_action_after_incorrect:
-                # Timed Drill logic for incorrect/timeout
-                if st.session_state.mode == "Timed Drill":
-                    st.error("❌ Incorrect or Time's up. Would you like to try again or reveal the answer?")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.button("1 More Minute", use_container_width=True, disabled=st.session_state.extra_minute_used, on_click=add_extra_minute)
-                    with col2:
-                        st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
-                # Study Mode logic for incorrect
-                else:
-                    st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.button("Show Hint", use_container_width=True, on_click=show_hint)
-                    with col2:
-                        st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
-                    with col3:
-                        st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
-            
-            # UI for revealed answer after incorrect action
-            elif st.session_state.show_answer and st.session_state.last_answer_state == 'incorrect':
-                # Display hint only if the user revealed it
-                if st.session_state.hint_revealed and 'hint' in question_data and pd.notna(question_data['hint']):
-                    st.info(f"Hint: {question_data['hint']}")
-                
-                st.error(f"❌ Incorrect. The correct answer is: **{question_data['answer']}**")
-                
-                if st.session_state.mode == "Timed Drill":
-                    st.info("Question has been added to cheat sheet for review.")
-                
-                if 'explanation' in question_data and pd.notna(question_data['explanation']):
-                    st.info(f"Explanation: {question_data['explanation']}")
-                st.button("Next Question", use_container_width=True, on_click=next_question)
-            
-            st.markdown("---")
 
-        else:
-            # End of Drill screen
-            st.header("Drill Complete! 🎉")
-            st.write(f"Fantastic job! You've successfully completed the practice drill for **{st.session_state.event}**.")
-
-            # Overall Summary
-            st.subheader("Drill Summary")
+        # Sidebar UI elements
+        with st.sidebar:
+            st.header("Progress")
+            st.write(f"**Score:** {st.session_state.score}")
+            st.write(f"**Attempted:** {st.session_state.attempted_questions}")
             if st.session_state.attempted_questions > 0:
                 accuracy = (st.session_state.score / st.session_state.attempted_questions) * 100
-                st.write(f"You answered **{st.session_state.score}** out of **{st.session_state.attempted_questions}** questions correctly, for an overall accuracy of **{accuracy:.2f}%**.")
-                st.write(f"You used hints **{st.session_state.hints_used}** time(s).")
-            else:
-                accuracy = 0
-                st.write("You didn't answer any questions during this session.")
+                st.write(f"**Accuracy:** {accuracy:.2f}%")
             
-            # Topic-by-topic summary
-            if st.session_state.topic_stats:
-                st.subheader("Performance by Topic")
-                for topic, stats in st.session_state.topic_stats.items():
-                    if stats['attempted'] > 0:
-                        topic_accuracy = (stats['correct'] / stats['attempted']) * 100
-                        st.markdown(f"- **{topic}**: {stats['correct']} of {stats['attempted']} correct ({topic_accuracy:.2f}%)")
-                    else:
-                        st.markdown(f"- **{topic}**: No questions attempted.")
-            
-            # Personalized Advice
-            st.subheader("Personalized Advice")
-            if accuracy >= 80:
-                st.success("Your performance is excellent! You have a strong grasp of the material. Keep up the great work and consider exploring new topics or events to broaden your knowledge.")
-            elif accuracy >= 50:
-                st.info("Great effort! You're on the right track. Focus on reviewing the topics where you had difficulty. Your cheat sheet is a great resource for this. Don't be afraid to try another drill on the same topics to solidify your understanding.")
-            else:
-                st.warning("You've completed the drill and now have a good starting point. The best next step is to carefully review your personalized cheat sheet and study the explanations for the questions you missed. Remember, every wrong answer is a chance to learn something new!")
-            
-            # Action Buttons
-            st.markdown("---")
-            if st.button("Start a New Drill", on_click=return_to_event_selection, use_container_width=True):
+            # "View Cheat Sheet" button
+            if st.button("View Cheat Sheet", use_container_width=True, help="View all incorrect questions so far", on_click=toggle_cheat_sheet, args=(True,)):
                 pass
 
-    # Sidebar UI elements
-    with st.sidebar:
-        st.header("Progress")
-        st.write(f"**Score:** {st.session_state.score}")
-        st.write(f"**Attempted:** {st.session_state.attempted_questions}")
-        if st.session_state.attempted_questions > 0:
-            accuracy = (st.session_state.score / st.session_state.attempted_questions) * 100
-            st.write(f"**Accuracy:** {accuracy:.2f}%")
-        
-        # "View Cheat Sheet" button
-        if st.button("View Cheat Sheet", use_container_width=True, help="View all incorrect questions so far", on_click=toggle_cheat_sheet, args=(True,)):
-            pass
+            st.markdown("---")
+            
+            if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
+                pass
 
-        st.markdown("---")
-        
-        if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
-            pass
-
-        # Conditional logic for Exit button with a key for specific styling
-        if st.session_state.questions_list and st.session_state.current_question_index / len(st.session_state.questions_list) > 0.5:
-            st.button("Exit Drill", key="exit_drill_button", on_click=show_exit_confirmation, use_container_width=True, help="End the current drill and return to event selection")
-        else:
-            st.button("Exit Drill", key="exit_drill_button", on_click=return_to_event_selection, use_container_width=True, help="End the current drill and return to event selection")
+            # Conditional logic for Exit button with a key for specific styling
+            if st.session_state.questions_list and st.session_state.current_question_index / len(st.session_state.questions_list) > 0.5:
+                st.button("Exit Drill", key="exit_drill_button", on_click=show_exit_confirmation, use_container_width=True, help="End the current drill and return to event selection")
+            else:
+                st.button("Exit Drill", key="exit_drill_button", on_click=return_to_event_selection, use_container_width=True, help="End the current drill and return to event selection")
