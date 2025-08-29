@@ -5,7 +5,7 @@ import os
 import time
 
 # Define the file path for the question data
-DATA_FILE = "questions_full.csv"
+DATA_FILE = os.path.join(os.path.dirname(__file__), "questions_full.csv")
 
 # --- Load Data ---
 @st.cache_data
