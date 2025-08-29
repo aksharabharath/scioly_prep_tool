@@ -98,6 +98,12 @@ def initialize_session_state():
         st.session_state.hints_used = 0
     if 'show_exit_confirmation' not in st.session_state:
         st.session_state.show_exit_confirmation = False
+    if 'mode' not in st.session_state:
+        st.session_state.mode = None
+    if 'timer_end_time' not in st.session_state:
+        st.session_state.timer_end_time = None
+    if 'extra_minute_used' not in st.session_state:
+        st.session_state.extra_minute_used = False
 
 # --- Callback Functions ---
 def set_event(event_name):
@@ -117,6 +123,11 @@ def start_drill():
     st.session_state.topic_stats = {}
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
+    
+    # Reset timer for Timed Drill
+    if st.session_state.mode == "Timed Drill":
+        st.session_state.timer_end_time = time.time() + 60
+        st.session_state.extra_minute_used = False
 
 def check_answer_callback():
     """Checks the user's answer and updates the score."""
@@ -149,6 +160,11 @@ def next_question():
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
     st.session_state.show_exit_confirmation = False
+    st.session_state.extra_minute_used = False # Reset extra minute for new question
+    
+    # Reset timer for Timed Drill
+    if st.session_state.mode == "Timed Drill":
+        st.session_state.timer_end_time = time.time() + 60
 
 def return_to_event_selection():
     """Resets all state and returns to the event selection screen."""
@@ -168,6 +184,9 @@ def return_to_event_selection():
     st.session_state.topic_stats = {}
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
+    st.session_state.mode = None # Reset mode
+    st.session_state.timer_end_time = None
+    st.session_state.extra_minute_used = False
 
 def reset_practice_session():
     """Resets the state for a new practice session."""
@@ -186,6 +205,8 @@ def reset_practice_session():
     st.session_state.topic_stats = {}
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
+    st.session_state.timer_end_time = None
+    st.session_state.extra_minute_used = False
 
 def toggle_cheat_sheet(state):
     """Callback to show/hide the cheat sheet."""
@@ -205,6 +226,15 @@ def reveal_answer():
     st.session_state.awaiting_action_after_incorrect = False
     current_question = st.session_state.questions_list[st.session_state.current_question_index]
     st.session_state.incorrect_questions.append(current_question)
+    if st.session_state.mode == "Timed Drill":
+        st.session_state.timer_end_time = None
+
+def add_extra_minute():
+    """Callback to give the user one more minute."""
+    st.session_state.timer_end_time = time.time() + 60
+    st.session_state.extra_minute_used = True
+    st.session_state.awaiting_action_after_incorrect = False
+    st.session_state.user_answer = ""
 
 def show_exit_confirmation():
     """Callback to trigger the exit confirmation popup."""
@@ -257,7 +287,7 @@ st.markdown("---")
 
 initialize_session_state()
 
-# The main conditional block to control page flow
+# Main conditional block to control page flow
 if st.session_state.event is None:
     # Home Page: Event Selection
     st.header("Select an Event to Begin")
@@ -271,10 +301,16 @@ if st.session_state.event is None:
     else:
         st.warning(f"No question data found. Please check your `{os.path.basename(DATA_FILE)}` file.")
 
-elif not st.session_state.questions_list:
-    # New Page: Topic Selection
-    st.header(f"Select Topics for {st.session_state.event} 📚")
+elif st.session_state.mode is None:
+    # Mode and Topic Selection
+    st.header(f"Select Mode and Topics for {st.session_state.event} 📚")
     
+    st.session_state.mode = st.radio(
+        "Choose your drill mode:",
+        options=["Study Mode", "Timed Drill"],
+        index=0,
+    )
+
     if st.session_state.questions_data:
         topics = sorted(list(set(q['topic'] for q in st.session_state.questions_data if q['event'] == st.session_state.event)))
         
@@ -293,8 +329,8 @@ elif not st.session_state.questions_list:
         st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
-    # Practice Mode (Study Mode)
-    st.header(f"Practice Mode: {st.session_state.event} ✨")
+    # Practice Mode (Study Mode or Timed Drill)
+    st.header(f"Practice Mode: {st.session_state.event} ({st.session_state.mode}) ✨")
     
     # Conditional logic for Exit Confirmation
     if st.session_state.show_exit_confirmation:
@@ -353,6 +389,23 @@ else:
             st.progress(progress_percentage, text=f"Question {st.session_state.current_question_index + 1} of {len(st.session_state.questions_list)}")
             
             st.subheader(f"Topic: {question_data['topic']}")
+            
+            # Timed Drill Timer
+            if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
+                timer_placeholder = st.empty()
+                
+                time_left = st.session_state.timer_end_time - time.time()
+                
+                if time_left <= 0:
+                    st.session_state.last_answer_state = 'incorrect'
+                    st.session_state.awaiting_action_after_incorrect = True
+                    timer_placeholder.error("Time's up!")
+                else:
+                    minutes, seconds = divmod(int(time_left), 60)
+                    timer_placeholder.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
+                    time.sleep(1)
+                    st.rerun()
+
             st.write(f"**Question:** {question_data['question']}")
             
             # Display hint if it has been revealed (and only if it's not a correct answer)
@@ -381,12 +434,24 @@ else:
                 
             # UI for incorrect answer, awaiting user action
             elif st.session_state.awaiting_action_after_incorrect:
-                st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.button("Show Hint", use_container_width=True, on_click=show_hint)
-                with col2:
-                    st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                # Timed Drill logic for incorrect/timeout
+                if st.session_state.mode == "Timed Drill":
+                    st.error("❌ Incorrect or Time's up. Would you like to try again or reveal the answer?")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.button("1 More Minute", use_container_width=True, disabled=st.session_state.extra_minute_used, on_click=add_extra_minute)
+                    with col2:
+                        st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                # Study Mode logic for incorrect
+                else:
+                    st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.button("Show Hint", use_container_width=True, on_click=show_hint)
+                    with col2:
+                        st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                    with col3:
+                        st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
             
             # UI for revealed answer after incorrect action
             elif st.session_state.show_answer and st.session_state.last_answer_state == 'incorrect':
@@ -395,7 +460,10 @@ else:
                     st.info(f"Hint: {question_data['hint']}")
                 
                 st.error(f"❌ Incorrect. The correct answer is: **{question_data['answer']}**")
-                st.info("Question has been added to cheat sheet for review.")
+                
+                if st.session_state.mode == "Timed Drill":
+                    st.info("Question has been added to cheat sheet for review.")
+                
                 if 'explanation' in question_data and pd.notna(question_data['explanation']):
                     st.info(f"Explanation: {question_data['explanation']}")
                 st.button("Next Question", use_container_width=True, on_click=next_question)
