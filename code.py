@@ -301,7 +301,7 @@ if st.session_state.event is None:
     else:
         st.warning(f"No question data found. Please check your `{os.path.basename(DATA_FILE)}` file.")
 
-elif st.session_state.mode is None:
+elif st.session_state.questions_list == [] and st.session_state.mode is None:
     # Mode and Topic Selection
     st.header(f"Select Mode and Topics for {st.session_state.event} 📚")
     
