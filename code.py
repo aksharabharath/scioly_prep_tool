@@ -1,5 +1,5 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import random
 import os
 import time
@@ -449,7 +449,7 @@ else:
                 st.session_state.user_answer = st.radio("Your answer:", ['True', 'False'], index=None)
             elif question_data['type'] == 'short-answer':
                 st.session_state.user_answer = st.text_input("Your answer:")
-                
+            
             # UI for answering the question
             if not st.session_state.show_answer and not st.session_state.awaiting_action_after_incorrect:
                 if st.button("Check Answer", use_container_width=True, disabled=st.session_state.user_answer is None, on_click=check_answer_callback):
