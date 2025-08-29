@@ -288,6 +288,7 @@ st.markdown("---")
 initialize_session_state()
 
 # Main conditional block to control page flow
+# The logic here has been simplified to prevent the premature jump.
 if st.session_state.event is None:
     # Home Page: Event Selection
     st.header("Select an Event to Begin")
@@ -301,7 +302,7 @@ if st.session_state.event is None:
     else:
         st.warning(f"No question data found. Please check your `{os.path.basename(DATA_FILE)}` file.")
 
-elif st.session_state.questions_list == [] and st.session_state.mode is None:
+elif not st.session_state.questions_list:
     # Mode and Topic Selection
     st.header(f"Select Mode and Topics for {st.session_state.event} 📚")
     
@@ -340,7 +341,7 @@ else:
             with col1:
                 st.button("❌ Exit", on_click=return_to_event_selection, use_container_width=True)
             with col2:
-                st.button("✅ Stay", on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
+                st.button("✅ Stay", on_on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
     else:
         # Display cheat sheet if the user has opted to view it
         if st.session_state.show_cheat_sheet:
