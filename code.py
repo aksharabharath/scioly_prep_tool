@@ -21,17 +21,43 @@ st.markdown("""
 def load_questions():
     """Loads the question data from st.secrets."""
     try:
-        # Check if the secret exists and get the content
-        if "questions_full.csv" not in st.secrets:
+        csv_content = st.secrets.get("questions_full.csv")
+        if csv_content is None:
             st.error("Error: The file 'questions_full.csv' was not found in st.secrets. Please ensure you have added it as a secret in your app's settings.")
             return []
             
-        csv_content = st.secrets["questions_full.csv"]
-        
-        # Read the content as a string into a BytesIO object
-        # which pandas can then read as a CSV file.
         df = pd.read_csv(io.StringIO(csv_content))
         
+        # Combine individual option columns into a single 'options' list
+        option_cols = [col for col in df.columns if col.startswith('options__')]
+        if not option_cols:
+            st.error("Error: 'options__' columns not found in the CSV data.")
+            return []
+            
+        df['options'] = df[option_cols].apply(
+            lambda row: [str(item).strip() for item in row if pd.notna(item)], 
+            axis=1
+        )
+        df = df.drop(columns=option_cols)
+        
+        # Infer question type based on options
+        df['type'] = df['options'].apply(lambda x: 
+            'true/false' if set(x) == {'True', 'False'} else
+            'multiple-choice' if len(x) > 1 else
+            'short-answer'
+        )
+        
+        # Clean up the dataframe and return as a list of dictionaries
+        questions_list = df.to_dict('records')
+        
+        # Filter out any rows that are missing 'event' or 'topic' keys
+        questions_list = [q for q in questions_list if 'event' in q and 'topic' in q and pd.notna(q['event']) and pd.notna(q['topic'])]
+        
+        return questions_list
+    
+    except (pd.errors.EmptyDataError, KeyError) as e:
+        st.error(f"Error reading CSV: {e}. Please ensure the secret has the correct columns and data format.")
+        return []        
         # Combine individual option columns into a single 'options' list
         option_cols = [col for col in df.columns if col.startswith('options__')]
         if not option_cols:
