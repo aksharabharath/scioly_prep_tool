@@ -385,22 +385,19 @@ else:
             
             st.subheader(f"Topic: {question_data['topic']}")
             
-            # Timed Drill Timer
-            if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
-                timer_placeholder = st.empty()
-                
-                time_left = st.session_state.timer_end_time - time.time()
-                
-                if time_left <= 0:
-                    st.session_state.last_answer_state = 'incorrect'
-                    st.session_state.awaiting_action_after_incorrect = True
-                    timer_placeholder.error("Time's up!")
-                else:
-                    minutes, seconds = divmod(int(time_left), 60)
-                    timer_placeholder.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
-                    time.sleep(1)
-                    st.rerun()
-
+# Timed Drill Timer
+if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
+    time_left = st.session_state.timer_end_time - time.time()
+    
+    if time_left <= 0:
+        st.session_state.last_answer_state = 'incorrect'
+        st.session_state.awaiting_action_after_incorrect = True
+        st.error("Time's up!")
+    else:
+        minutes, seconds = divmod(int(time_left), 60)
+        st.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
+        # No st.rerun() here
+        
             st.write(f"**Question:** {question_data['question']}")
             
             # Display hint if it has been revealed (and only if it's not a correct answer)
