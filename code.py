@@ -4,8 +4,11 @@ import random
 import os
 import time
 
-# Define the file path for the question data
-DATA_FILE = os.path.join(os.path.dirname(__file__), "questions_full.csv")
+# Get the path to the directory containing this script
+THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full path to the data file
+DATA_FILE = os.path.join(THIS_FOLDER, "questions_full.csv")
 
 # --- Load Data ---
 @st.cache_data
@@ -14,7 +17,6 @@ def load_questions(file_path):
     if not os.path.exists(file_path):
         st.error(f"Error: The file '{file_path}' was not found. Please ensure the file is in the app's directory and is spelled correctly.")
         return []
-    
     try:
         df = pd.read_csv(file_path)
         
