@@ -81,6 +81,10 @@ def initialize_session_state():
         st.session_state.awaiting_action_after_incorrect = False
     if 'user_answer' not in st.session_state:
         st.session_state.user_answer = ""
+    if 'topic_stats' not in st.session_state:
+        st.session_state.topic_stats = {}
+    if 'hints_used' not in st.session_state:
+        st.session_state.hints_used = 0
     
 
 # --- Callback Functions ---
@@ -98,16 +102,25 @@ def start_drill():
     st.session_state.last_answer_state = None
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
+    st.session_state.topic_stats = {} # Reset stats
+    st.session_state.hints_used = 0 # Reset hints
 
 def check_answer_callback():
     """Checks the user's answer and updates the score."""
     current_question = st.session_state.questions_list[st.session_state.current_question_index]
     correct_answer = current_question['answer']
     
+    # Update topic stats
+    topic = current_question['topic']
+    if topic not in st.session_state.topic_stats:
+        st.session_state.topic_stats[topic] = {'attempted': 0, 'correct': 0}
+        
+    st.session_state.topic_stats[topic]['attempted'] += 1
     st.session_state.attempted_questions += 1
     
     if str(st.session_state.user_answer).strip().lower() == str(correct_answer).strip().lower():
         st.session_state.score += 1
+        st.session_state.topic_stats[topic]['correct'] += 1
         st.session_state.last_answer_state = 'correct'
         st.session_state.show_answer = True
     else:
@@ -138,6 +151,8 @@ def return_to_event_selection():
     st.session_state.hint_revealed = False
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
+    st.session_state.topic_stats = {}
+    st.session_state.hints_used = 0
 
 def reset_practice_session():
     """Resets the state for a new practice session."""
@@ -153,6 +168,8 @@ def reset_practice_session():
     st.session_state.hint_revealed = False
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
+    st.session_state.topic_stats = {}
+    st.session_state.hints_used = 0
 
 def toggle_cheat_sheet(state):
     """Callback to show/hide the cheat sheet."""
@@ -164,6 +181,7 @@ def show_hint():
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
     st.session_state.show_answer = False
+    st.session_state.hints_used += 1
 
 def reveal_answer():
     """Callback to reveal the answer and move to the next question."""
@@ -357,37 +375,39 @@ else:
     else:
         # End of Drill screen
         st.header("Drill Complete! 🎉")
-        st.write(f"You answered **{st.session_state.score}** out of **{st.session_state.attempted_questions}** questions correctly.")
-        
-        st.subheader("Cheat Sheet")
-        if st.session_state.incorrect_questions:
-            # Generate the cheat sheet text for download
-            cheat_sheet_text = ""
-            for q_data in st.session_state.incorrect_questions:
-                phrase = generate_cheat_sheet_phrase(q_data)
-                cheat_sheet_text += f"- {phrase}\n\n"
-            
-            st.download_button(
-                label="Download as Plain Text (.txt)",
-                data=cheat_sheet_text,
-                file_name=f"SciOly_{st.session_state.event}_CheatSheet.txt",
-                mime="text/plain"
-            )
+        st.write(f"Fantastic job! You've successfully completed the practice drill for **{st.session_state.event}**.")
 
-            # Generate markdown content for download
-            markdown_content = ""
-            for q_data in st.session_state.incorrect_questions:
-                markdown_content += f"- {generate_cheat_sheet_phrase(q_data)}\n\n"
-            
-            st.download_button(
-                label="Download as Markdown (.md)",
-                data=markdown_content,
-                file_name=f"SciOly_{st.session_state.event}_CheatSheet.md",
-                mime="text/markdown"
-            )
+        # Overall Summary
+        st.subheader("Drill Summary")
+        if st.session_state.attempted_questions > 0:
+            accuracy = (st.session_state.score / st.session_state.attempted_questions) * 100
+            st.write(f"You answered **{st.session_state.score}** out of **{st.session_state.attempted_questions}** questions correctly, for an overall accuracy of **{accuracy:.2f}%**.")
+            st.write(f"You used hints **{st.session_state.hints_used}** time(s).")
         else:
-            st.info("You got all the questions right! No cheat sheet needed.")
+            accuracy = 0
+            st.write("You didn't answer any questions during this session.")
         
+        # Topic-by-topic summary
+        if st.session_state.topic_stats:
+            st.subheader("Performance by Topic")
+            for topic, stats in st.session_state.topic_stats.items():
+                if stats['attempted'] > 0:
+                    topic_accuracy = (stats['correct'] / stats['attempted']) * 100
+                    st.markdown(f"- **{topic}**: {stats['correct']} of {stats['attempted']} correct ({topic_accuracy:.2f}%)")
+                else:
+                    st.markdown(f"- **{topic}**: No questions attempted.")
+        
+        # Personalized Advice
+        st.subheader("Personalized Advice")
+        if accuracy >= 80:
+            st.success("Your performance is excellent! You have a strong grasp of the material. Keep up the great work and consider exploring new topics or events to broaden your knowledge.")
+        elif accuracy >= 50:
+            st.info("Great effort! You're on the right track. Focus on reviewing the topics where you had difficulty. Your cheat sheet is a great resource for this. Don't be afraid to try another drill on the same topics to solidify your understanding.")
+        else:
+            st.warning("You've completed the drill and now have a good starting point. The best next step is to carefully review your personalized cheat sheet and study the explanations for the questions you missed. Remember, every wrong answer is a chance to learn something new!")
+        
+        # Action Buttons
+        st.markdown("---")
         if st.button("Start a New Drill", on_click=return_to_event_selection, use_container_width=True):
             pass
 
