@@ -8,10 +8,11 @@ import time
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(THIS_FOLDER, "questions_full.csv")
 
-# --- Custom CSS for Red Button ---
+# --- Custom CSS for Red Exit Button ---
 st.markdown("""
 <style>
-.stButton>button {
+/* This targets the specific "Exit Drill" button using its data-testid */
+[data-testid="stButton-exit_drill_button"] > button {
     background-color: #ff4b4b;
     color: white;
 }
@@ -458,8 +459,8 @@ else:
         if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
             pass
 
-        # Conditional logic for Exit button
-        if st.session_state.attempted_questions / len(st.session_state.questions_list) > 0.5:
-            st.button("Exit Drill", on_click=show_exit_confirmation, use_container_width=True, help="End the current drill and return to event selection")
+        # Conditional logic for Exit button with a key for specific styling
+        if st.session_state.questions_list and st.session_state.current_question_index / len(st.session_state.questions_list) > 0.5:
+            st.button("Exit Drill", key="exit_drill_button", on_click=show_exit_confirmation, use_container_width=True, help="End the current drill and return to event selection")
         else:
-            st.button("Exit Drill", on_click=return_to_event_selection, use_container_width=True, help="End the current drill and return to event selection")
+            st.button("Exit Drill", key="exit_drill_button", on_click=return_to_event_selection, use_container_width=True, help="End the current drill and return to event selection")
