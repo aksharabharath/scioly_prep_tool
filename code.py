@@ -60,7 +60,6 @@ div.stButton > button:hover, label.st-bu:hover {
 def load_questions():
     """Loads the question data from a local CSV file."""
     try:
-        # This line now reads the file directly from the repository
         df = pd.read_csv("questions_full.csv")
 
         # Combine individual option columns into a single 'options' list
@@ -139,8 +138,6 @@ def initialize_session_state():
         st.session_state.timer_end_time = None
     if 'extra_minute_used' not in st.session_state:
         st.session_state.extra_minute_used = False
-    if 'question_count' not in st.session_state:
-        st.session_state.question_count = 10
 
 # --- Callback Functions ---
 def set_event(event_name):
@@ -149,7 +146,7 @@ def set_event(event_name):
 
 def start_drill():
     """Callback to get questions and start the drill."""
-    st.session_state.questions_list = get_questions_for_event(st.session_state.event, st.session_state.selected_topics, st.session_state.question_count)
+    st.session_state.questions_list = get_questions_for_event(st.session_state.event, st.session_state.selected_topics)
     st.session_state.current_question_index = 0
     st.session_state.show_cheat_sheet = False
     st.session_state.hint_revealed = False
@@ -225,7 +222,6 @@ def return_to_event_selection():
     st.session_state.mode = None # Reset mode
     st.session_state.timer_end_time = None
     st.session_state.extra_minute_used = False
-    st.session_state.question_count = 10
 
 def reset_practice_session():
     """Resets the state for a new practice session."""
@@ -246,7 +242,6 @@ def reset_practice_session():
     st.session_state.show_exit_confirmation = False
     st.session_state.timer_end_time = None
     st.session_state.extra_minute_used = False
-    st.session_state.question_count = 10
 
 def toggle_cheat_sheet(state):
     """Callback to show/hide the cheat sheet."""
@@ -280,9 +275,10 @@ def show_exit_confirmation():
     st.session_state.show_exit_confirmation = True
 
 # --- Helper Functions ---
-def get_questions_for_event(event_name, topics, count):
+def get_questions_for_event(event_name, topics):
     """
-    Gathers a specified number of questions for a selected event and topics.
+    Gathers a specified number of questions for a selected event and topics,
+    following the new logic of 5 questions per topic, up to a maximum of 10.
     """
     if not st.session_state.questions_data:
         return []
@@ -291,17 +287,25 @@ def get_questions_for_event(event_name, topics, count):
     
     final_questions = []
     
-    # If all topics are selected, or no topics are selected, use all questions
+    # If all topics are selected, or no topics are selected, get all topics for the event
     if 'All of the Above' in topics or not topics:
-        final_questions = event_questions
+        topics_to_select_from = sorted(list(set(q['topic'] for q in event_questions)))
     else:
-        # Filter for selected topics
-        final_questions = [q for q in event_questions if q['topic'] in topics]
+        topics_to_select_from = topics
     
-    random.shuffle(final_questions)
-    
-    # Return the requested number of questions or all available if fewer
-    return final_questions[:count]
+    # Select up to 5 questions for each chosen topic
+    for topic in topics_to_select_from:
+        topic_questions = [q for q in event_questions if q['topic'] == topic]
+        random.shuffle(topic_questions)
+        final_questions.extend(topic_questions[:5])
+
+    # If the total is less than 10, return all questions
+    if len(final_questions) < 10:
+        return final_questions
+    else:
+        # If the total is 10 or more, shuffle and return the first 10
+        random.shuffle(final_questions)
+        return final_questions[:10]
 
 def generate_cheat_sheet_phrase(question_data):
     """Generates a concise phrase for the cheat sheet."""
@@ -365,14 +369,8 @@ elif not st.session_state.questions_list:
             default=["All of the Above"]
         )
         
-        # Add the number input for question count
-        st.session_state.question_count = st.number_input(
-            "Number of questions:",
-            min_value=1,
-            max_value=len(topics) * 5 if len(topics) * 5 > 10 else 10,
-            value=min(st.session_state.question_count, 10),
-            step=1
-        )
+        # The number of questions is now automatically determined by the logic
+        st.info("The drill will consist of a maximum of 10 questions, with a cap of 5 questions per topic selected.")
 
         if st.button("Start Drill", use_container_width=True, on_click=start_drill):
             pass
@@ -435,7 +433,7 @@ else:
         elif st.session_state.questions_list and st.session_state.current_question_index < len(st.session_state.questions_list):
             question_data = st.session_state.questions_list[st.session_state.current_question_index]
             
-            progress_percentage = (st.session_state.current_question_index / len(st.session_state.questions_list))
+            progress_percentage = (st.session_state.current_question_index + 1) / len(st.session_state.questions_list)
             st.progress(progress_percentage, text=f"Question {st.session_state.current_question_index + 1} of {len(st.session_state.questions_list)}")
             
             st.subheader(f"Topic: {question_data['topic']}")
@@ -471,12 +469,16 @@ else:
                 if st.button("Check Answer", use_container_width=True, disabled=st.session_state.user_answer is None, on_click=check_answer_callback):
                     pass
             
+            # Check if this is the last question
+            is_last_question = st.session_state.current_question_index + 1 == len(st.session_state.questions_list)
+            next_button_label = "View Summary" if is_last_question else "Next Question"
+            
             # UI for correct answer
             if st.session_state.last_answer_state == 'correct':
                 st.success("✅ Correct!")
                 if 'explanation' in question_data and pd.notna(question_data['explanation']):
                     st.info(f"Explanation: {question_data['explanation']}")
-                st.button("Next Question", use_container_width=True, on_click=next_question)
+                st.button(next_button_label, use_container_width=True, on_click=next_question)
                 
             # UI for incorrect answer, awaiting user action
             elif st.session_state.awaiting_action_after_incorrect:
@@ -499,7 +501,7 @@ else:
                 
                 if 'explanation' in question_data and pd.notna(question_data['explanation']):
                     st.info(f"Explanation: {question_data['explanation']}")
-                st.button("Next Question", use_container_width=True, on_click=next_question)
+                st.button(next_button_label, use_container_width=True, on_click=next_question)
             
             st.markdown("---")
 
