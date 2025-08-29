@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import random
-import io # Import the io module
 import os
 import time
 
@@ -19,15 +18,11 @@ st.markdown("""
 # --- Load Data ---
 @st.cache_data
 def load_questions():
-    """Loads the question data from st.secrets."""
+    """Loads the question data from a local CSV file."""
     try:
-        csv_content = st.secrets.get("questions_full.csv")
-        if csv_content is None:
-            st.error("Error: The file 'questions_full.csv' was not found in st.secrets. Please ensure you have added it as a secret in your app's settings.")
-            return []
-            
-        df = pd.read_csv(io.StringIO(csv_content))
-        
+        # This line now reads the file directly from the repository
+        df = pd.read_csv("questions_full.csv")
+
         # Combine individual option columns into a single 'options' list
         option_cols = [col for col in df.columns if col.startswith('options__')]
         if not option_cols:
@@ -54,39 +49,11 @@ def load_questions():
         questions_list = [q for q in questions_list if 'event' in q and 'topic' in q and pd.notna(q['event']) and pd.notna(q['topic'])]
         
         return questions_list
-    
-    except (pd.errors.EmptyDataError, KeyError) as e:
-        st.error(f"Error reading CSV: {e}. Please ensure the secret has the correct columns and data format.")
-        return []        
-        # Combine individual option columns into a single 'options' list
-        option_cols = [col for col in df.columns if col.startswith('options__')]
-        if not option_cols:
-            st.error("Error: 'options__' columns not found in the CSV data.")
-            return []
-            
-        df['options'] = df[option_cols].apply(
-            lambda row: [str(item).strip() for item in row if pd.notna(item)], 
-            axis=1
-        )
-        df = df.drop(columns=option_cols)
-        
-        # Infer question type based on options
-        df['type'] = df['options'].apply(lambda x: 
-            'true/false' if set(x) == {'True', 'False'} else
-            'multiple-choice' if len(x) > 1 else
-            'short-answer'
-        )
-        
-        # Clean up the dataframe and return as a list of dictionaries
-        questions_list = df.to_dict('records')
-        
-        # Filter out any rows that are missing 'event' or 'topic' keys
-        questions_list = [q for q in questions_list if 'event' in q and 'topic' in q and pd.notna(q['event']) and pd.notna(q['topic'])]
-        
-        return questions_list
-    
-    except (pd.errors.EmptyDataError, KeyError) as e:
-        st.error(f"Error reading CSV: {e}. Please ensure the secret has the correct columns and data format.")
+    except FileNotFoundError:
+        st.error("Error: The file 'questions_full.csv' was not found. Please ensure it is in your GitHub repository's root folder.")
+        return []
+    except Exception as e:
+        st.error(f"An unexpected error occurred while loading the data: {e}")
         return []
 
 # --- Initialize Session State ---
@@ -316,7 +283,6 @@ st.markdown("---")
 initialize_session_state()
 
 # Main conditional block to control page flow
-# The logic here has been simplified to prevent the premature jump.
 if st.session_state.event is None:
     # Home Page: Event Selection
     st.header("Select an Event to Begin")
