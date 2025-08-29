@@ -398,7 +398,7 @@ if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_acti
         st.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
         # No st.rerun() here
         
-            st.write(f"**Question:** {question_data['question']}")
+st.write(f"**Question:** {question_data['question']}")
             
             # Display hint if it has been revealed (and only if it's not a correct answer)
             if st.session_state.hint_revealed and st.session_state.last_answer_state != 'correct' and 'hint' in question_data and pd.notna(question_data['hint']):
