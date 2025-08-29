@@ -514,12 +514,6 @@ else:
             # Topic-by-topic summary with a bar chart
             if st.session_state.topic_stats:
                 st.subheader("Performance by Topic")
-                # Create a DataFrame for the bar chart
-                df_stats = pd.DataFrame.from_dict(st.session_state.topic_stats, orient='index')
-                df_stats.index.name = 'Topic'
-                df_stats['Accuracy'] = (df_stats['correct'] / df_stats['attempted']) * 100
-                st.bar_chart(df_stats[['Accuracy']])
-                
                 # Display text details below the chart
                 for topic, stats in st.session_state.topic_stats.items():
                     if stats['attempted'] > 0:
