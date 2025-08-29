@@ -4,10 +4,8 @@ import random
 import os
 import time
 
-# Get the path to the directory containing this script
+# --- File Paths ---
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the full path to the data file
 DATA_FILE = os.path.join(THIS_FOLDER, "questions_full.csv")
 
 # --- Load Data ---
@@ -17,6 +15,7 @@ def load_questions(file_path):
     if not os.path.exists(file_path):
         st.error(f"Error: The file '{file_path}' was not found. Please ensure the file is in the app's directory and is spelled correctly.")
         return []
+    
     try:
         df = pd.read_csv(file_path)
         
@@ -175,20 +174,34 @@ def reveal_answer():
 
 # --- Helper Functions ---
 def get_questions_for_event(event_name, topics):
-    """Gathers questions for a selected event and topics, then shuffles them."""
+    """
+    Gathers questions for a selected event and topics, then shuffles them.
+    Includes logic to select a quota of questions per topic.
+    """
     if not st.session_state.questions_data:
         return []
     
     event_questions = [q for q in st.session_state.questions_data if q['event'] == event_name]
     
-    # Filter by topic if specific topics are selected
-    if topics and 'All of the Above' not in topics:
-        filtered_questions = [q for q in event_questions if q['topic'] in topics]
+    final_questions = []
+    
+    # If all topics are selected, or no topics are selected, use all questions
+    if 'All of the Above' in topics or not topics:
+        final_questions = event_questions
     else:
-        filtered_questions = event_questions
-
-    random.shuffle(filtered_questions)
-    return filtered_questions
+        # Loop through each selected topic and grab a maximum of 5 questions
+        for topic in topics:
+            topic_questions = [q for q in event_questions if q['topic'] == topic]
+            random.shuffle(topic_questions)
+            final_questions.extend(topic_questions[:5])
+    
+    random.shuffle(final_questions)
+    
+    # Final check for total question count
+    if len(final_questions) >= 10:
+        return final_questions[:10]  # Return the first 10 questions
+    else:
+        return final_questions      # Return all available questions if less than 10
 
 def generate_cheat_sheet_phrase(question_data):
     """Generates a concise phrase for the cheat sheet."""
@@ -230,7 +243,7 @@ if st.session_state.event is None:
         if st.button("Astronomy", use_container_width=True, on_click=set_event, args=(event_name,)):
             pass
     else:
-        st.warning(f"No question data found. Please check your `{DATA_FILE}` file.")
+        st.warning(f"No question data found. Please check your `{os.path.basename(DATA_FILE)}` file.")
 
 elif not st.session_state.questions_list:
     # New Page: Topic Selection
@@ -251,7 +264,7 @@ elif not st.session_state.questions_list:
         st.button("Back to Events", on_click=return_to_event_selection)
     else:
         st.warning(f"No questions loaded for {st.session_state.event}. Please check your CSV file.")
-        st.button("Back to Events", on_on_click=return_to_event_selection)
+        st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
     # Practice Mode (Study Mode)
@@ -405,7 +418,7 @@ else:
 
         st.markdown("---")
         
-        if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_on_click=reset_practice_session):
+        if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
             pass
         
         if st.session_state.event and st.button("Back to Events", use_container_width=True, on_click=return_to_event_selection):
