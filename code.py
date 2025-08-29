@@ -205,23 +205,11 @@ def get_questions_for_event(event_name, topics):
 
 def generate_cheat_sheet_phrase(question_data):
     """Generates a concise phrase for the cheat sheet."""
-    question = question_data['question']
-    answer = question_data['answer']
-    
-    if "primary energy source" in question.lower():
-        phrase = f"Energy source for protostar: {answer}"
-    elif "comes immediately after" in question.lower():
-        phrase = f"Next stage after main-sequence: {answer}"
-    elif "type of star" in question.lower() and "become" in question.lower():
-        phrase = f"Fate of sun-like star: {answer}"
-    elif "process powers" in question.lower():
-        phrase = f"Main-sequence power source: {answer}"
-    elif "undergo a supernova" in question.lower():
-        phrase = f"Stars that go supernova: {answer}"
+    # Prioritize explanation if it exists, otherwise fall back to Q&A
+    if 'explanation' in question_data and pd.notna(question_data['explanation']):
+        return question_data['explanation']
     else:
-        phrase = f"Q: {question}\nA: {answer}"
-    
-    return phrase
+        return f"Q: {question_data['question']}\nA: {question_data['answer']}"
 
 # --- UI Layout and Logic ---
 st.set_page_config(page_title="SciOly Prep Tool", layout="centered", page_icon="✨")
@@ -294,7 +282,7 @@ else:
             # Generate markdown content for download
             markdown_content = ""
             for q_data in st.session_state.incorrect_questions:
-                markdown_content += f"### {q_data['question']}\n**Answer:** {q_data['answer']}\n\n"
+                markdown_content += f"- {generate_cheat_sheet_phrase(q_data)}\n\n"
             
             st.download_button(
                 label="Download as Markdown (.md)",
@@ -389,7 +377,7 @@ else:
             # Generate markdown content for download
             markdown_content = ""
             for q_data in st.session_state.incorrect_questions:
-                markdown_content += f"### {q_data['question']}\n**Answer:** {q_data['answer']}\n\n"
+                markdown_content += f"- {generate_cheat_sheet_phrase(q_data)}\n\n"
             
             st.download_button(
                 label="Download as Markdown (.md)",
