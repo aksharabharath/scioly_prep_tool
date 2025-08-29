@@ -1,12 +1,9 @@
 import streamlit as st
 import pandas as pd
 import random
+import io # Import the io module
 import os
 import time
-
-# --- File Paths ---
-THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(THIS_FOLDER, "questions_full.csv")
 
 # --- Custom CSS for Red Exit Button ---
 st.markdown("""
@@ -21,19 +18,24 @@ st.markdown("""
 
 # --- Load Data ---
 @st.cache_data
-def load_questions(file_path):
-    """Loads the question data from a CSV file."""
-    if not os.path.exists(file_path):
-        st.error(f"Error: The file '{file_path}' was not found. Please ensure the file is in the app's directory and is spelled correctly.")
-        return []
-    
+def load_questions():
+    """Loads the question data from st.secrets."""
     try:
-        df = pd.read_csv(file_path)
+        # Check if the secret exists and get the content
+        if "questions_full.csv" not in st.secrets:
+            st.error("Error: The file 'questions_full.csv' was not found in st.secrets. Please ensure you have added it as a secret in your app's settings.")
+            return []
+            
+        csv_content = st.secrets["questions_full.csv"]
+        
+        # Read the content as a string into a BytesIO object
+        # which pandas can then read as a CSV file.
+        df = pd.read_csv(io.StringIO(csv_content))
         
         # Combine individual option columns into a single 'options' list
         option_cols = [col for col in df.columns if col.startswith('options__')]
         if not option_cols:
-            st.error("Error: 'options__' columns not found in the CSV file.")
+            st.error("Error: 'options__' columns not found in the CSV data.")
             return []
             
         df['options'] = df[option_cols].apply(
@@ -58,14 +60,14 @@ def load_questions(file_path):
         return questions_list
     
     except (pd.errors.EmptyDataError, KeyError) as e:
-        st.error(f"Error reading CSV: {e}. Please ensure '{DATA_FILE}' has the correct columns and data format.")
+        st.error(f"Error reading CSV: {e}. Please ensure the secret has the correct columns and data format.")
         return []
 
 # --- Initialize Session State ---
 def initialize_session_state():
     """Initializes all necessary session state variables."""
     if 'questions_data' not in st.session_state:
-        st.session_state.questions_data = load_questions(DATA_FILE)
+        st.session_state.questions_data = load_questions()
     if 'event' not in st.session_state:
         st.session_state.event = None
     if 'selected_topics' not in st.session_state:
@@ -300,7 +302,7 @@ if st.session_state.event is None:
         if st.button("Astronomy", use_container_width=True, on_click=set_event, args=(event_name,)):
             pass
     else:
-        st.warning(f"No question data found. Please check your `{os.path.basename(DATA_FILE)}` file.")
+        st.warning("No question data found.")
 
 elif not st.session_state.questions_list:
     # Mode and Topic Selection
@@ -326,7 +328,7 @@ elif not st.session_state.questions_list:
         
         st.button("Back to Events", on_click=return_to_event_selection)
     else:
-        st.warning(f"No questions loaded for {st.session_state.event}. Please check your CSV file.")
+        st.warning("No questions loaded for this event.")
         st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
@@ -341,7 +343,7 @@ else:
             with col1:
                 st.button("❌ Exit", on_click=return_to_event_selection, use_container_width=True)
             with col2:
-                st.button("✅ Stay", on_on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
+                st.button("✅ Stay", on_click=lambda: st.session_state.update(show_exit_confirmation=False), use_container_width=True)
     else:
         # Display cheat sheet if the user has opted to view it
         if st.session_state.show_cheat_sheet:
