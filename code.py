@@ -136,8 +136,9 @@ def initialize_session_state():
         st.session_state.mode = None
     if 'timer_end_time' not in st.session_state:
         st.session_state.timer_end_time = None
-    if 'extra_minute_used' not in st.session_state:
-        st.session_state.extra_minute_used = False
+    if 'start_time' not in st.session_state:
+        st.session_state.start_time = None
+
 
 # --- Callback Functions ---
 def set_event(event_name):
@@ -158,10 +159,11 @@ def start_drill():
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
     
-    # Reset timer for Timed Drill
+    # Start a continuous timer for Timed Drill
     if st.session_state.mode == "Timed Drill":
-        st.session_state.timer_end_time = time.time() + 60
-        st.session_state.extra_minute_used = False
+        total_time_seconds = len(st.session_state.questions_list) * 60
+        st.session_state.start_time = time.time()
+        st.session_state.timer_end_time = st.session_state.start_time + total_time_seconds
 
 def check_answer_callback():
     """Checks the user's answer and updates the score."""
@@ -195,11 +197,6 @@ def next_question():
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.user_answer = ""
     st.session_state.show_exit_confirmation = False
-    st.session_state.extra_minute_used = False # Reset extra minute for new question
-    
-    # Reset timer for Timed Drill
-    if st.session_state.mode == "Timed Drill":
-        st.session_state.timer_end_time = time.time() + 60
 
 def return_to_event_selection():
     """Resets all state and returns to the event selection screen."""
@@ -221,7 +218,7 @@ def return_to_event_selection():
     st.session_state.show_exit_confirmation = False
     st.session_state.mode = None # Reset mode
     st.session_state.timer_end_time = None
-    st.session_state.extra_minute_used = False
+    st.session_state.start_time = None
 
 def reset_practice_session():
     """Resets the state for a new practice session."""
@@ -241,7 +238,8 @@ def reset_practice_session():
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
     st.session_state.timer_end_time = None
-    st.session_state.extra_minute_used = False
+    st.session_state.start_time = None
+
 
 def toggle_cheat_sheet(state):
     """Callback to show/hide the cheat sheet."""
@@ -260,15 +258,6 @@ def reveal_answer():
     st.session_state.show_answer = True
     st.session_state.awaiting_action_after_incorrect = False
     st.session_state.incorrect_questions.append(st.session_state.questions_list[st.session_state.current_question_index])
-    if st.session_state.mode == "Timed Drill":
-        st.session_state.timer_end_time = None
-
-def add_extra_minute():
-    """Callback to give the user one more minute."""
-    st.session_state.timer_end_time = time.time() + 60
-    st.session_state.extra_minute_used = True
-    st.session_state.awaiting_action_after_incorrect = False
-    st.session_state.user_answer = ""
 
 def show_exit_confirmation():
     """Callback to trigger the exit confirmation popup."""
@@ -369,9 +358,6 @@ elif not st.session_state.questions_list:
             default=["All of the Above"]
         )
         
-        # The number of questions is now automatically determined by the logic
-        st.info("The drill will consist of a maximum of 10 questions, with a cap of 5 questions per topic selected.")
-
         if st.button("Start Drill", use_container_width=True, on_click=start_drill):
             pass
         
@@ -483,13 +469,11 @@ else:
             # UI for incorrect answer, awaiting user action
             elif st.session_state.awaiting_action_after_incorrect:
                 st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
                 with col1:
                     st.button("Show Hint", use_container_width=True, on_click=show_hint)
                 with col2:
                     st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
-                with col3:
-                    st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
             
             # UI for revealed answer after incorrect action
             elif st.session_state.show_answer and st.session_state.last_answer_state == 'incorrect':
@@ -505,7 +489,7 @@ else:
             
             st.markdown("---")
 
-            # Rerun the script only if the timer is still active
+            # Rerun the script only if the timer is still active and a choice hasn't been made
             if st.session_state.mode == "Timed Drill" and not st.session_state.awaiting_action_after_incorrect:
                 time_left = st.session_state.timer_end_time - time.time()
                 if time_left > 0:
