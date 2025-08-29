@@ -327,22 +327,22 @@ if st.session_state.event is None:
     st.markdown("Use this app to study for your events by taking practice drills.")
     
     if st.session_state.questions_data:
-        event_name = "Astronomy"
-        
-        # Count unique topics for the card subtitle
-        unique_topics = set(q['topic'] for q in st.session_state.questions_data if q['event'] == event_name)
+        # Get all unique event names
+        all_events = sorted(list(set(q['event'] for q in st.session_state.questions_data if 'event' in q and pd.notna(q['event']))))
 
-        # Create the Event Card UI
-        with st.container():
-            st.markdown(f"""
-            <div class="event-card-container">
-                <div class="event-card-title">{event_name}</div>
-                <div class="event-card-subtitle">{len(unique_topics)} unique topics available</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # Dynamically create a card and button for each event
+        for event_name in all_events:
+            unique_topics = set(q['topic'] for q in st.session_state.questions_data if q['event'] == event_name)
 
-            # Use st.button with a unique key to make it clickable
-            st.button("Start Astronomy Drill", key="start_astronomy", use_container_width=True, on_click=set_event, args=(event_name,))
+            with st.container():
+                st.markdown(f"""
+                <div class="event-card-container">
+                    <div class="event-card-title">{event_name}</div>
+                    <div class="event-card-subtitle">{len(unique_topics)} unique topics available</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.button(f"Start {event_name} Drill", key=f"start_{event_name}", use_container_width=True, on_click=set_event, args=(event_name,))
     else:
         st.warning("No question data found.")
 
