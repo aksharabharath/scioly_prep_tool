@@ -428,6 +428,7 @@ else:
         
         if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
             pass
-        
-        if st.session_state.event and st.button("Back to Events", use_container_width=True, on_click=return_to_event_selection):
+
+        # Added new "Exit Drill" button
+        if st.button("Exit Drill", use_container_width=True, help="End the current drill and return to event selection", on_click=return_to_event_selection):
             pass
