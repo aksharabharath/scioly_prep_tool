@@ -266,7 +266,7 @@ else:
             cheat_sheet_text = ""
             for q_data in st.session_state.incorrect_questions:
                 phrase = generate_cheat_sheet_phrase(q_data)
-                cheat_sheet_text += f"* {phrase}\n\n"
+                cheat_sheet_text += f"- {phrase}\n\n"
             
             # Display the text in the app
             st.text_area("Cheat Sheet Content", value=cheat_sheet_text, height=400, disabled=True)
@@ -365,7 +365,7 @@ else:
             cheat_sheet_text = ""
             for q_data in st.session_state.incorrect_questions:
                 phrase = generate_cheat_sheet_phrase(q_data)
-                cheat_sheet_text += f"* {phrase}\n\n"
+                cheat_sheet_text += f"- {phrase}\n\n"
             
             st.download_button(
                 label="Download as Plain Text (.txt)",
