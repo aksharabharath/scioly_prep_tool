@@ -324,7 +324,7 @@ elif not st.session_state.questions_list:
         st.button("Back to Events", on_click=return_to_event_selection)
 
 else:
-        # Practice Mode (Study Mode or Timed Drill)
+                # Practice Mode (Study Mode or Timed Drill)
         st.header(f"Practice Mode: {st.session_state.event} ({st.session_state.mode}) ✨")
         
         # Conditional logic for Exit Confirmation
@@ -425,24 +425,15 @@ else:
                     
                 # UI for incorrect answer, awaiting user action
                 elif st.session_state.awaiting_action_after_incorrect:
-                    # Timed Drill logic for incorrect/timeout
-                    if st.session_state.mode == "Timed Drill":
-                        st.error("❌ Incorrect or Time's up. Would you like to try again or reveal the answer?")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("1 More Minute", use_container_width=True, disabled=st.session_state.extra_minute_used, on_click=add_extra_minute)
-                        with col2:
-                            st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
-                    # Study Mode logic for incorrect
-                    else:
-                        st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.button("Show Hint", use_container_width=True, on_click=show_hint)
-                        with col2:
-                            st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
-                        with col3:
-                            st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
+                    # Logic is now the same for both Study and Timed modes
+                    st.error("❌ Incorrect. Would you like to try again with a hint or reveal the answer?")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.button("Show Hint", use_container_width=True, on_click=show_hint)
+                    with col2:
+                        st.button("Reveal Answer", use_container_width=True, on_click=reveal_answer)
+                    with col3:
+                        st.button("Add to Cheat Sheet", use_container_width=True, on_click=lambda: st.session_state.incorrect_questions.append(question_data))
                 
                 # UI for revealed answer after incorrect action
                 elif st.session_state.show_answer and st.session_state.last_answer_state == 'incorrect':
@@ -452,8 +443,8 @@ else:
                     
                     st.error(f"❌ Incorrect. The correct answer is: **{question_data['answer']}**")
                     
-                    if st.session_state.mode == "Timed Drill":
-                        st.info("Question has been added to cheat sheet for review.")
+                    # The cheat sheet is always updated on incorrect answers, regardless of mode
+                    st.info("Question has been added to cheat sheet for review.")
                     
                     if 'explanation' in question_data and pd.notna(question_data['explanation']):
                         st.info(f"Explanation: {question_data['explanation']}")
@@ -523,7 +514,7 @@ else:
 
             st.markdown("---")
             
-            if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
+            if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_on_click=reset_practice_session):
                 pass
 
             # Conditional logic for Exit button with a key for specific styling
