@@ -51,6 +51,27 @@ div.stButton > button:hover, label.st-bu:hover {
     color: #666;
     margin-top: 5px;
 }
+
+/* Timer styles */
+.timer-text-green {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #4CAF50; /* Green */
+    text-align: center;
+}
+.timer-text-red {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #FF5733; /* Red */
+    text-align: center;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,9 +180,9 @@ def start_drill():
     st.session_state.hints_used = 0
     st.session_state.show_exit_confirmation = False
     
-    # Start a continuous timer for Timed Drill
+    # Start a fixed 5-minute timer for Timed Drill
     if st.session_state.mode == "Timed Drill":
-        total_time_seconds = len(st.session_state.questions_list) * 60
+        total_time_seconds = 300  # 5 minutes
         st.session_state.start_time = time.time()
         st.session_state.timer_end_time = st.session_state.start_time + total_time_seconds
 
@@ -429,13 +450,13 @@ else:
                 time_left = st.session_state.timer_end_time - time.time()
                 
                 if time_left <= 0:
-                    st.session_state.last_answer_state = 'incorrect'
-                    st.session_state.awaiting_action_after_incorrect = True
-                    st.error("Time's up!")
+                    st.session_state.current_question_index = len(st.session_state.questions_list)
+                    st.rerun()
                 else:
                     minutes, seconds = divmod(int(time_left), 60)
-                    st.info(f"Time remaining: {minutes:02d}:{seconds:02d}")
-            
+                    timer_class = "timer-text-red" if time_left <= 30 else "timer-text-green"
+                    st.markdown(f'<div class="{timer_class}">{minutes:02d}:{seconds:02d}</div>', unsafe_allow_html=True)
+
             st.write(f"**Question:** {question_data['question']}")
             
             # Display hint if it has been revealed (and only if it's not a correct answer)
@@ -550,7 +571,7 @@ else:
             pass
 
         st.markdown("---")
-        
+    
         if st.button("Reset Current Drill", use_container_width=True, help="Clear all progress for this event", on_click=reset_practice_session):
             pass
 
